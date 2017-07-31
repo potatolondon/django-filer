@@ -85,7 +85,6 @@ class File(PolymorphicModel, mixins.IconsMixin):
     def __init__(self, *args, **kwargs):
         super(File, self).__init__(*args, **kwargs)
         self._old_is_public = self.is_public
-        self.file_data_changed(post_init=True)
 
     def file_data_changed(self, post_init=False):
         """
@@ -191,6 +190,9 @@ class File(PolymorphicModel, mixins.IconsMixin):
         if self._old_is_public != self.is_public and self.pk:
             self._move_file()
             self._old_is_public = self.is_public
+
+        self.file_data_changed(post_init=True)
+
         super(File, self).save(*args, **kwargs)
     save.alters_data = True
 
