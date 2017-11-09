@@ -29,7 +29,7 @@ class BaseImage(File):
     DEFAULT_THUMBNAILS = {
         'admin_clipboard_icon': {'size': (32, 32), 'crop': True,
                                  'upscale': True},
-        'admin_sidebar_preview': {'size': (SIDEBAR_IMAGE_WIDTH, 0), 'crop': True},
+        'admin_sidebar_preview': {'size': (SIDEBAR_IMAGE_WIDTH, 0), 'crop': True, 'subject_location': ''},
         'admin_directory_listing_icon': {'size': (48, 48),
                                          'crop': True, 'upscale': True},
         'admin_tiny_icon': {'size': (32, 32), 'crop': True, 'upscale': True},
@@ -147,7 +147,8 @@ class BaseImage(File):
         _thumbnails = {}
         for name, opts in six.iteritems(required_thumbnails):
             try:
-                opts.update({'subject_location': self.subject_location})
+                if 'subject_location' not in opts:
+                    opts.update({'subject_location': self.subject_location})
 
                 # Pull out the size from the opts dictionary
                 size = opts['size']
