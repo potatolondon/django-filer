@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import logging
 import os
+from copy import deepcopy
 from distutils.version import LooseVersion
 
 from django import get_version
@@ -16,6 +17,8 @@ from ..utils.filer_easy_thumbnails import FilerThumbnailer
 from ..utils.pil_exif import get_exif_for_file
 from .filemodels import File
 
+from thumbnails.templatetags.thumbnail import do_thumbnail
+
 logger = logging.getLogger(__name__)
 
 DJANGO_GTE_17 = LooseVersion(get_version()) >= LooseVersion('1.7.0')
@@ -26,7 +29,7 @@ class BaseImage(File):
     DEFAULT_THUMBNAILS = {
         'admin_clipboard_icon': {'size': (32, 32), 'crop': True,
                                  'upscale': True},
-        'admin_sidebar_preview': {'size': (SIDEBAR_IMAGE_WIDTH, 10000), 'upscale': True},
+        'admin_sidebar_preview': {'size': (SIDEBAR_IMAGE_WIDTH, 0), 'crop': True},
         'admin_directory_listing_icon': {'size': (48, 48),
                                          'crop': True, 'upscale': True},
         'admin_tiny_icon': {'size': (32, 32), 'crop': True, 'upscale': True},
@@ -139,12 +142,19 @@ class BaseImage(File):
         return self._height or 0
 
     def _generate_thumbnails(self, required_thumbnails):
+        required_thumbnails = deepcopy(required_thumbnails)
+
         _thumbnails = {}
         for name, opts in six.iteritems(required_thumbnails):
             try:
                 opts.update({'subject_location': self.subject_location})
-                thumb = self.file.get_thumbnail(opts)
-                _thumbnails[name] = thumb.url
+
+                # Pull out the size from the opts dictionary
+                size = opts['size']
+                del opts['size']
+
+                # Hook into the same thumbnail generation code as the template tag uses
+                _thumbnails[name] = do_thumbnail(self, size, opts)
             except Exception as e:
                 # catch exception and manage it. We can re-raise it for debugging
                 # purposes and/or just logging it, provided user configured
@@ -153,16 +163,21 @@ class BaseImage(File):
                     logger.error('Error while generating thumbnail: %s', e)
                 if filer_settings.FILER_DEBUG:
                     raise
+
         return _thumbnails
 
     @property
     def icons(self):
-        required_thumbnails = dict(
-            (size, {'size': (int(size), int(size)),
-                    'crop': True,
-                    'upscale': True,
-                    'subject_location': self.subject_location})
-            for size in filer_settings.FILER_ADMIN_ICON_SIZES)
+        # Build options dict for each thumbnail size
+        required_thumbnails = {}
+        for size in filer_settings.FILER_ADMIN_ICON_SIZES:
+            required_thumbnails[size] = {
+                'size': (int(size), int(size)),  # Translate size into int dimension tuple e.g. '16' -> (16, 16)
+                'crop': True,
+                'upscale': True,
+                'subject_location': self.subject_location
+            }
+
         return self._generate_thumbnails(required_thumbnails)
 
     @property
