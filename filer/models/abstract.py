@@ -169,6 +169,9 @@ class BaseImage(File):
 
     @property
     def icons(self):
+        if self.extension not in ['jpg', 'jpeg', 'png', 'gif']:
+            return super(BaseImage, self).icons
+
         # Build options dict for each thumbnail size
         required_thumbnails = {}
         for size in filer_settings.FILER_ADMIN_ICON_SIZES:
